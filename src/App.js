@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Package, Settings, Plus, Search, Menu, X, TrendingUp, 
   AlertCircle, FileText, Upload, Instagram, Facebook, Store, DollarSign, 
   CheckCircle, RotateCcw, Wallet, PieChart, Download, Globe, Users, Lock, 
-  ArrowRightLeft, Coins, ShoppingCart, Trash2, Link, Truck, MapPin, RefreshCw, Mail
+  ArrowRightLeft, Coins, ShoppingCart, Trash2, Link, Truck, MapPin, RefreshCw, Mail, Calendar
 } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
@@ -29,38 +29,44 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- BRANDING ---
+// --- BRANDING (Adapted from paste-2.txt) ---
 const BRAND = {
-  primary: "bg-[#800020]", primaryText: "text-[#800020]",
-  accent: "bg-[#D4AF37]", accentText: "text-[#D4AF37]",
-  gradient: "bg-gradient-to-r from-[#800020] to-[#500010]",
-  light: "bg-[#fcf5f5]"
+  primary: "bg-purple-600", 
+  primaryHover: "hover:bg-purple-700",
+  primaryText: "text-purple-700",
+  light: "bg-purple-50",
+  accent: "text-purple-600",
+  gradient: "bg-gradient-to-r from-purple-600 to-purple-800",
+  bg: "bg-gray-50",
+  card: "bg-white rounded-2xl shadow-xl border-0"
 };
 
 // --- UTILITY COMPONENTS ---
 const Card = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-slate-100 p-4 ${className}`}>{children}</div>
+  <div className={`${BRAND.card} p-6 ${className}`}>{children}</div>
 );
 
 const Badge = ({ children, type = "default" }) => {
   const styles = {
-    default: "bg-slate-100 text-slate-600", success: "bg-emerald-100 text-emerald-700",
-    warning: "bg-amber-100 text-amber-700", danger: "bg-rose-100 text-rose-700",
-    maroon: "bg-[#800020]/10 text-[#800020]", gold: "bg-[#D4AF37]/20 text-[#856d1e]",
+    default: "bg-gray-100 text-gray-600",
+    success: "bg-emerald-100 text-emerald-700",
+    warning: "bg-amber-100 text-amber-700",
+    danger: "bg-rose-100 text-rose-700",
+    primary: "bg-purple-100 text-purple-700",
     info: "bg-blue-100 text-blue-700"
   };
-  return <span className={`px-2 py-1 rounded-md text-xs font-medium ${styles[type] || styles.default}`}>{children}</span>;
+  return <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[type] || styles.default}`}>{children}</span>;
 };
 
 const Button = ({ children, onClick, variant = "primary", icon: Icon, className = "", disabled = false }) => {
   const variants = {
-    primary: `${BRAND.primary} text-white hover:opacity-90 shadow-md`,
-    secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
+    primary: `${BRAND.primary} text-white ${BRAND.primaryHover} shadow-lg shadow-purple-600/30`,
+    secondary: "bg-gray-100 text-gray-700 hover:bg-gray-200",
     danger: "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200",
-    ghost: "text-slate-600 hover:bg-slate-100",
+    ghost: "text-gray-500 hover:bg-gray-100",
   };
   return (
-    <button onClick={onClick} disabled={disabled} className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 ${variants[variant]} ${className}`}>
+    <button onClick={onClick} disabled={disabled} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all active:scale-95 disabled:opacity-50 ${variants[variant]} ${className}`}>
       {Icon && <Icon size={18} />}{children}
     </button>
   );
@@ -78,7 +84,7 @@ const downloadCSV = (data, filename) => {
   document.body.removeChild(link);
 };
 
-// --- 1. DASHBOARD (Restored Full Features) ---
+// --- 1. DASHBOARD ---
 const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
   const [timeFilter, setTimeFilter] = useState('month'); 
 
@@ -88,7 +94,6 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
     let daysToSubtract = 30;
     if (timeFilter === 'week') daysToSubtract = 7;
     if (timeFilter === '3months') daysToSubtract = 90;
-    if (timeFilter === '6months') daysToSubtract = 180;
     if (timeFilter === 'year') daysToSubtract = 365;
 
     const cutoff = now.getTime() - (daysToSubtract * msInDay);
@@ -114,78 +119,98 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
   }, [filteredData]);
 
   return (
-    <div className="space-y-6 pb-20 animate-fade-in">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 pb-20 animate-fade-in">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h2 className={`text-2xl font-serif font-bold ${BRAND.primaryText}`}>Welcome, {currentUser?.name}</h2>
-          <p className="text-xs text-slate-500">Overview for: <span className="font-bold capitalize">{timeFilter}</span></p>
+          <h2 className="text-3xl font-bold text-gray-800">Welcome, {currentUser?.name}</h2>
+          <p className="text-gray-500 mt-1">Performance overview for: <span className="font-semibold capitalize text-purple-600">{timeFilter}</span></p>
         </div>
-        <div className="flex bg-white rounded-lg border p-1 shadow-sm overflow-x-auto">
+        <div className="flex bg-white rounded-xl border p-1 shadow-sm">
             {['week', 'month', '3months', 'year'].map(t => (
-              <button key={t} onClick={() => setTimeFilter(t)} className={`px-3 py-1 text-sm rounded-md transition-colors capitalize ${timeFilter === t ? 'bg-[#800020] text-white' : 'text-slate-500'}`}>
+              <button key={t} onClick={() => setTimeFilter(t)} className={`px-4 py-2 text-sm rounded-lg transition-all font-medium capitalize ${timeFilter === t ? 'bg-purple-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                 {t === '3months' ? 'Quarter' : t}
               </button>
             ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className={`${BRAND.gradient} text-white border-none`}>
-          <p className="text-[#D4AF37] text-sm font-medium mb-1">Total Revenue</p>
-          <h3 className="text-2xl font-bold">₹{metrics.sales.toLocaleString()}</h3>
-          <div className="mt-2 text-xs opacity-70">Gross Sales</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className={`${BRAND.gradient} text-white`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-purple-100 text-sm font-medium mb-1">Total Revenue</p>
+              <h3 className="text-3xl font-bold">₹{metrics.sales.toLocaleString()}</h3>
+            </div>
+            <div className="p-3 bg-white/20 rounded-xl"><TrendingUp size={24} className="text-white" /></div>
+          </div>
         </Card>
         <Card>
-          <p className="text-slate-500 text-sm font-medium mb-1">Low Stock Items</p>
-          <h3 className="text-2xl font-bold text-amber-600">{inventory.filter(i => i.quantity < 5).length}</h3>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-gray-500 text-sm font-medium mb-1">Low Stock</p>
+              <h3 className="text-3xl font-bold text-amber-600">{inventory.filter(i => i.quantity < 5).length}</h3>
+            </div>
+            <div className="p-3 bg-amber-100 rounded-xl"><AlertCircle size={24} className="text-amber-600" /></div>
+          </div>
         </Card>
         {currentUser.role !== 'Worker' && (
           <>
             <Card>
-              <p className="text-slate-500 text-sm font-medium mb-1">Net Profit (Est.)</p>
-              <h3 className="text-2xl font-bold text-emerald-600">₹{metrics.profit.toLocaleString()}</h3>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-gray-500 text-sm font-medium mb-1">Net Profit</p>
+                  <h3 className="text-3xl font-bold text-emerald-600">₹{metrics.profit.toLocaleString()}</h3>
+                </div>
+                <div className="p-3 bg-emerald-100 rounded-xl"><Wallet size={24} className="text-emerald-600" /></div>
+              </div>
             </Card>
             <Card>
-              <p className="text-slate-500 text-sm font-medium mb-1">Total Expenses</p>
-              <h3 className="text-2xl font-bold text-slate-700">₹{metrics.expenseTotal.toLocaleString()}</h3>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-gray-500 text-sm font-medium mb-1">Expenses</p>
+                  <h3 className="text-3xl font-bold text-gray-700">₹{metrics.expenseTotal.toLocaleString()}</h3>
+                </div>
+                <div className="p-3 bg-rose-100 rounded-xl"><DollarSign size={24} className="text-rose-600" /></div>
+              </div>
             </Card>
           </>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-1">
-           <h3 className={`font-bold ${BRAND.primaryText} mb-4 flex items-center gap-2`}><PieChart size={18} /> Sales Channels</h3>
-           <div className="space-y-4">
+           <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><PieChart size={20} className="text-purple-600"/> Sales Channels</h3>
+           <div className="space-y-5">
              {Object.entries(metrics.channelData).map(([channel, amount]) => (
                <div key={channel}>
-                 <div className="flex justify-between text-sm mb-1">
-                   <span className="font-medium">{channel}</span>
-                   <span className="font-bold">₹{amount.toLocaleString()}</span>
+                 <div className="flex justify-between text-sm mb-2">
+                   <span className="font-medium text-gray-700">{channel}</span>
+                   <span className="font-bold text-gray-900">₹{amount.toLocaleString()}</span>
                  </div>
-                 <div className="w-full bg-slate-100 rounded-full h-2">
-                   <div className="h-2 rounded-full bg-[#800020]" style={{ width: `${metrics.sales > 0 ? (amount / metrics.sales) * 100 : 0}%` }}></div>
+                 <div className="w-full bg-gray-100 rounded-full h-2.5">
+                   <div className="h-2.5 rounded-full bg-purple-600 transition-all duration-1000" style={{ width: `${metrics.sales > 0 ? (amount / metrics.sales) * 100 : 0}%` }}></div>
                  </div>
                </div>
              ))}
            </div>
         </Card>
         <Card className="lg:col-span-2">
-          <h3 className={`font-bold ${BRAND.primaryText} mb-4`}>Recent Activity</h3>
-          <div className="space-y-3">
+          <h3 className="font-bold text-gray-800 mb-6">Recent Activity</h3>
+          <div className="space-y-4">
             {invoices.slice(0, 5).map(inv => (
-              <div key={inv.id} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${inv.status === 'Returned' ? 'bg-rose-100 text-rose-600' : 'bg-[#800020]/10 text-[#800020]'}`}>
-                    {inv.status === 'Returned' ? <RotateCcw size={14}/> : <CheckCircle size={14}/>}
+              <div key={inv.id} className="flex justify-between items-center p-4 hover:bg-gray-50 rounded-xl border border-transparent hover:border-gray-100 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${inv.status === 'Returned' ? 'bg-rose-100 text-rose-600' : 'bg-purple-100 text-purple-600'}`}>
+                    {inv.status === 'Returned' ? <RotateCcw size={18}/> : <CheckCircle size={18}/>}
                   </div>
                   <div>
-                    <p className="font-medium text-slate-800 text-sm">{inv.customerName || 'Walk-in'} <span className="text-xs text-slate-400">via {inv.channel}</span></p>
-                    <p className="text-xs text-slate-500">{new Date(inv.date).toLocaleDateString()}</p>
+                    <p className="font-bold text-gray-800">{inv.customerName || 'Walk-in'} <span className="text-xs font-normal text-gray-400 ml-1">via {inv.channel}</span></p>
+                    <p className="text-xs text-gray-500">{new Date(inv.date).toLocaleDateString()}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`font-bold text-sm ${inv.status === 'Returned' ? 'text-rose-600 line-through' : 'text-slate-700'}`}>₹{inv.total}</div>
+                  <div className={`font-bold ${inv.status === 'Returned' ? 'text-rose-600 line-through' : 'text-gray-800'}`}>₹{inv.total}</div>
+                  <div className="text-xs text-gray-400 capitalize">{inv.status}</div>
                 </div>
               </div>
             ))}
@@ -196,7 +221,7 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
   );
 };
 
-// --- 2. PARTIES & OUTLETS (New) ---
+// --- 2. PARTIES & OUTLETS ---
 const PartiesModule = () => {
   const [outlets, setOutlets] = useState([]);
   const [parties, setParties] = useState([]);
@@ -214,36 +239,36 @@ const PartiesModule = () => {
   const handleDelete = async (coll, id) => { if(window.confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, coll, id)); }
 
   return (
-    <div className="space-y-6">
-      <h2 className={`text-2xl font-bold ${BRAND.primaryText}`}>Parties, Vendors & Outlets</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-800">Parties, Vendors & Outlets</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-4">
-          <h3 className="font-bold flex items-center gap-2"><Store size={18}/> Sales Channels & Locations</h3>
+          <h3 className="font-bold flex items-center gap-2 text-purple-700"><Store size={20}/> Sales Channels</h3>
           <Card>
-            <form onSubmit={addOutlet} className="flex gap-2">
-              <input className="flex-1 p-2 border rounded" placeholder="Name" value={newOutlet.name} onChange={e=>setNewOutlet({...newOutlet, name: e.target.value})} required />
-              <select className="p-2 border rounded" value={newOutlet.type} onChange={e=>setNewOutlet({...newOutlet, type: e.target.value})}><option>Store</option><option>Warehouse</option><option>Online</option></select>
+            <form onSubmit={addOutlet} className="flex gap-3">
+              <input className="flex-1 p-3 border rounded-xl bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-purple-200" placeholder="Outlet Name" value={newOutlet.name} onChange={e=>setNewOutlet({...newOutlet, name: e.target.value})} required />
+              <select className="p-3 border rounded-xl bg-gray-50 outline-none" value={newOutlet.type} onChange={e=>setNewOutlet({...newOutlet, type: e.target.value})}><option>Store</option><option>Warehouse</option><option>Online</option></select>
               <Button>Add</Button>
             </form>
           </Card>
-          <div className="space-y-2">{outlets.map(o => <div key={o.id} className="flex justify-between items-center bg-white p-3 rounded border"><div><div className="font-bold">{o.name}</div><div className="text-xs text-slate-500">{o.type}</div></div><button onClick={()=>handleDelete('outlets', o.id)} className="text-slate-400 hover:text-rose-600"><Trash2 size={16}/></button></div>)}</div>
+          <div className="space-y-3">{outlets.map(o => <div key={o.id} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div><div className="font-bold text-gray-800">{o.name}</div><div className="text-xs text-gray-500">{o.type}</div></div><button onClick={()=>handleDelete('outlets', o.id)} className="text-gray-400 hover:text-rose-600"><Trash2 size={18}/></button></div>)}</div>
         </div>
         <div className="space-y-4">
-          <h3 className="font-bold flex items-center gap-2"><Truck size={18}/> Vendors & Parties</h3>
+          <h3 className="font-bold flex items-center gap-2 text-purple-700"><Truck size={20}/> Vendors & Parties</h3>
           <Card>
-            <form onSubmit={addParty} className="space-y-2">
-              <div className="flex gap-2"><input className="flex-1 p-2 border rounded" placeholder="Name" value={newParty.name} onChange={e=>setNewParty({...newParty, name: e.target.value})} required /><select className="p-2 border rounded" value={newParty.type} onChange={e=>setNewParty({...newParty, type: e.target.value})}><option>Vendor</option><option>Owner</option><option>Manager</option></select></div>
-              <div className="flex gap-2"><input className="flex-1 p-2 border rounded" placeholder="Contact" value={newParty.contact} onChange={e=>setNewParty({...newParty, contact: e.target.value})} /><Button>Add</Button></div>
+            <form onSubmit={addParty} className="space-y-3">
+              <div className="flex gap-3"><input className="flex-1 p-3 border rounded-xl bg-gray-50" placeholder="Name" value={newParty.name} onChange={e=>setNewParty({...newParty, name: e.target.value})} required /><select className="p-3 border rounded-xl bg-gray-50" value={newParty.type} onChange={e=>setNewParty({...newParty, type: e.target.value})}><option>Vendor</option><option>Owner</option><option>Manager</option></select></div>
+              <div className="flex gap-3"><input className="flex-1 p-3 border rounded-xl bg-gray-50" placeholder="Contact Info" value={newParty.contact} onChange={e=>setNewParty({...newParty, contact: e.target.value})} /><Button>Add</Button></div>
             </form>
           </Card>
-          <div className="space-y-2">{parties.map(p => <div key={p.id} className="flex justify-between items-center bg-white p-3 rounded border"><div><div className="font-bold">{p.name}</div><div className="text-xs text-slate-500">{p.type}</div></div><button onClick={()=>handleDelete('parties', p.id)} className="text-slate-400 hover:text-rose-600"><Trash2 size={16}/></button></div>)}</div>
+          <div className="space-y-3">{parties.map(p => <div key={p.id} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div><div className="font-bold text-gray-800">{p.name}</div><div className="text-xs text-gray-500">{p.type} • {p.contact}</div></div><button onClick={()=>handleDelete('parties', p.id)} className="text-gray-400 hover:text-rose-600"><Trash2 size={18}/></button></div>)}</div>
         </div>
       </div>
     </div>
   );
 };
 
-// --- 3. INVENTORY (Merged: Locations + Bulk Import) ---
+// --- 3. INVENTORY ---
 const InventoryManager = ({ inventory, outlets }) => {
   const [item, setItem] = useState({ name: "", sku: "", quantity: 0, price: 0, cost: 0, location: "" });
   const [showBulk, setShowBulk] = useState(false);
@@ -281,20 +306,20 @@ const InventoryManager = ({ inventory, outlets }) => {
   const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || i.sku?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-         <h2 className={`text-2xl font-bold ${BRAND.primaryText}`}>Inventory</h2>
+         <h2 className="text-2xl font-bold text-gray-800">Inventory</h2>
          <Button variant="secondary" onClick={() => setShowBulk(true)} icon={Upload}>Bulk Import</Button>
       </div>
 
       <Card>
-        <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
-          <div className="col-span-2"><label className="text-xs font-bold text-slate-500">Item Name</label><input placeholder="Name" className="w-full p-2 border rounded" required value={item.name} onChange={e => setItem({...item, name: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-slate-500">SKU</label><input placeholder="SKU" className="w-full p-2 border rounded" value={item.sku} onChange={e => setItem({...item, sku: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-slate-500">Qty</label><input type="number" placeholder="0" className="w-full p-2 border rounded" required value={item.quantity} onChange={e => setItem({...item, quantity: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-slate-500">Price</label><input type="number" placeholder="0.00" className="w-full p-2 border rounded" required value={item.price} onChange={e => setItem({...item, price: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-slate-500">Location</label>
-            <select className="w-full p-2 border rounded" value={item.location} onChange={e => setItem({...item, location: e.target.value})}>
+        <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+          <div className="col-span-2"><label className="text-xs font-bold text-gray-500 mb-1 block">Item Name</label><input placeholder="Product Name" className="w-full p-3 border rounded-xl bg-gray-50" required value={item.name} onChange={e => setItem({...item, name: e.target.value})} /></div>
+          <div><label className="text-xs font-bold text-gray-500 mb-1 block">SKU</label><input placeholder="SKU-001" className="w-full p-3 border rounded-xl bg-gray-50" value={item.sku} onChange={e => setItem({...item, sku: e.target.value})} /></div>
+          <div><label className="text-xs font-bold text-gray-500 mb-1 block">Qty</label><input type="number" placeholder="0" className="w-full p-3 border rounded-xl bg-gray-50" required value={item.quantity} onChange={e => setItem({...item, quantity: e.target.value})} /></div>
+          <div><label className="text-xs font-bold text-gray-500 mb-1 block">Price</label><input type="number" placeholder="0.00" className="w-full p-3 border rounded-xl bg-gray-50" required value={item.price} onChange={e => setItem({...item, price: e.target.value})} /></div>
+          <div><label className="text-xs font-bold text-gray-500 mb-1 block">Location</label>
+            <select className="w-full p-3 border rounded-xl bg-gray-50" value={item.location} onChange={e => setItem({...item, location: e.target.value})}>
               <option value="">Select Location</option>
               {outlets.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
             </select>
@@ -304,27 +329,32 @@ const InventoryManager = ({ inventory, outlets }) => {
       </Card>
 
       {showBulk && (
-         <Card className="fixed inset-0 z-50 m-auto max-w-lg h-96 flex flex-col shadow-2xl">
-            <div className="flex justify-between mb-2 font-bold"><span>Bulk Upload (CSV)</span><button onClick={()=>setShowBulk(false)}><X/></button></div>
-            <p className="text-xs text-slate-500 mb-2">Format: Name, SKU, Quantity, Price, Location</p>
-            <textarea className="flex-1 border p-2 rounded bg-slate-50 font-mono text-xs" placeholder={`Silk Saree, SKU-99, 10, 2500, Shelf A\nCotton Suit, SKU-100, 5, 1200, Shelf B`} value={bulkData} onChange={e => setBulkData(e.target.value)}></textarea>
-            <Button className="mt-2" onClick={handleBulkUpload}>Process Upload</Button>
-         </Card>
+         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+           <Card className="w-full max-w-lg h-96 flex flex-col relative">
+              <div className="flex justify-between mb-4 font-bold text-lg"><span>Bulk Upload (CSV)</span><button onClick={()=>setShowBulk(false)}><X/></button></div>
+              <p className="text-xs text-gray-500 mb-2">Format: Name, SKU, Quantity, Price, Location</p>
+              <textarea className="flex-1 border p-4 rounded-xl bg-gray-50 font-mono text-sm" placeholder={`Silk Saree, SKU-99, 10, 2500, Shelf A\nCotton Suit, SKU-100, 5, 1200, Shelf B`} value={bulkData} onChange={e => setBulkData(e.target.value)}></textarea>
+              <Button className="mt-4" onClick={handleBulkUpload}>Process Upload</Button>
+           </Card>
+         </div>
       )}
 
-      <div className="relative"><Search className="absolute left-3 top-2.5 text-slate-400" size={18}/><input className="w-full pl-10 p-2 border rounded-lg bg-slate-50" placeholder="Search by Name or SKU..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
+      <div className="relative">
+        <Search className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+        <input className="w-full pl-12 p-3 border rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Search inventory..." value={search} onChange={e=>setSearch(e.target.value)} />
+      </div>
 
-      <div className="overflow-auto bg-white rounded-xl border h-[500px]">
+      <div className="overflow-hidden bg-white rounded-2xl shadow-xl border border-gray-100">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 sticky top-0"><tr><th className="p-3">Name</th><th className="p-3">SKU</th><th className="p-3">Location</th><th className="p-3">Stock</th><th className="p-3">Price</th><th className="p-3">Action</th></tr></thead>
-          <tbody>{filtered.map(i => <tr key={i.id} className="border-t hover:bg-slate-50"><td className="p-3">{i.name}</td><td className="p-3 text-slate-500">{i.sku}</td><td className="p-3"><Badge>{i.location}</Badge></td><td className="p-3">{i.quantity}</td><td className="p-3">₹{i.price}</td><td className="p-3"><button onClick={()=>handleDelete(i.id)}><Trash2 size={16} className="text-slate-300 hover:text-rose-500"/></button></td></tr>)}</tbody>
+          <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 font-bold text-gray-600">Name</th><th className="p-4 font-bold text-gray-600">SKU</th><th className="p-4 font-bold text-gray-600">Location</th><th className="p-4 font-bold text-gray-600">Stock</th><th className="p-4 font-bold text-gray-600">Price</th><th className="p-4 text-center">Action</th></tr></thead>
+          <tbody className="divide-y divide-gray-100">{filtered.map(i => <tr key={i.id} className="hover:bg-purple-50 transition-colors"><td className="p-4 font-medium text-gray-800">{i.name}</td><td className="p-4 text-gray-500">{i.sku}</td><td className="p-4"><Badge>{i.location}</Badge></td><td className="p-4 font-bold">{i.quantity}</td><td className="p-4">₹{i.price}</td><td className="p-4 text-center"><button onClick={()=>handleDelete(i.id)}><Trash2 size={18} className="text-gray-300 hover:text-rose-500"/></button></td></tr>)}</tbody>
         </table>
       </div>
     </div>
   );
 };
 
-// --- 4. BILLING & SALES (Returns + Cart) ---
+// --- 4. BILLING & SALES ---
 const BillingSales = ({ inventory }) => {
   const [cart, setCart] = useState([]);
   const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '' });
@@ -360,36 +390,42 @@ const BillingSales = ({ inventory }) => {
   const filteredProducts = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-100px)]">
+    <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-120px)]">
       <div className="flex-1 flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-           <div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-2.5 text-slate-400" size={18}/><input className="w-full pl-10 p-2 border rounded-lg" placeholder="Search products..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
-           <div className="flex items-center gap-2 ml-2">
-             <span className={`text-sm font-bold ${isReturnMode ? 'text-rose-600' : 'text-slate-400'}`}>Return Mode</span>
-             <button onClick={() => {setIsReturnMode(!isReturnMode); setCart([])}} className={`w-12 h-6 rounded-full transition-colors relative ${isReturnMode ? 'bg-rose-600' : 'bg-slate-300'}`}>
-               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isReturnMode ? 'left-7' : 'left-1'}`}></div>
+        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border">
+           <div className="relative flex-1 max-w-md mr-4"><Search className="absolute left-3 top-2.5 text-gray-400" size={20}/><input className="w-full pl-10 p-2.5 border rounded-xl bg-gray-50 focus:bg-white" placeholder="Scan or Search products..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
+           <div className="flex items-center gap-3">
+             <span className={`text-sm font-bold ${isReturnMode ? 'text-rose-600' : 'text-gray-400'}`}>Return Mode</span>
+             <button onClick={() => {setIsReturnMode(!isReturnMode); setCart([])}} className={`w-14 h-8 rounded-full transition-colors relative shadow-inner ${isReturnMode ? 'bg-rose-600' : 'bg-gray-300'}`}>
+               <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-md ${isReturnMode ? 'left-7' : 'left-1'}`}></div>
              </button>
            </div>
         </div>
-        <div className="flex-1 overflow-auto grid grid-cols-2 md:grid-cols-3 gap-2 content-start">
+        <div className="flex-1 overflow-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start pb-20">
           {filteredProducts.map(p => (
-            <button key={p.id} onClick={() => setCart([...cart, {...p, qty: 1}])} className={`p-3 rounded border text-left transition-all ${isReturnMode ? 'bg-rose-50 border-rose-200' : 'bg-white hover:border-[#800020]'}`}>
-              <div className="font-bold">{p.name}</div><div>₹{p.price}</div><div className="text-xs text-slate-500">Stock: {p.quantity}</div>
+            <button key={p.id} onClick={() => setCart([...cart, {...p, qty: 1}])} className={`p-4 rounded-xl border text-left transition-all shadow-sm ${isReturnMode ? 'bg-rose-50 border-rose-200 hover:shadow-rose-100' : 'bg-white border-gray-100 hover:border-purple-300 hover:shadow-md'}`}>
+              <div className="font-bold text-gray-800 line-clamp-1">{p.name}</div>
+              <div className={`font-bold mt-1 ${isReturnMode ? 'text-rose-600' : 'text-purple-600'}`}>₹{p.price}</div>
+              <div className="text-xs text-gray-400 mt-2 flex justify-between"><span>Stock: {p.quantity}</span><span>{p.location}</span></div>
             </button>
           ))}
         </div>
       </div>
 
-      <Card className={`w-full md:w-96 flex flex-col ${isReturnMode ? 'border-rose-500 border-2' : ''}`}>
-        <h3 className={`font-bold mb-2 flex items-center gap-2 ${isReturnMode ? 'text-rose-600' : 'text-[#800020]'}`}>{isReturnMode ? <RotateCcw/> : <ShoppingCart/>} {isReturnMode ? 'Customer Return' : 'Current Order'}</h3>
-        <div className="flex-1 overflow-auto mb-2 space-y-1">
-          {cart.map((i, idx) => (<div key={idx} className="text-sm flex justify-between p-2 bg-slate-50 rounded"><span>{i.name}</span><span className={isReturnMode ? 'text-rose-600' : ''}>{isReturnMode ? '-' : ''}₹{i.price}</span></div>))}
+      <Card className={`w-full md:w-96 flex flex-col h-full shadow-2xl ${isReturnMode ? 'border-2 border-rose-500' : 'border-0'}`}>
+        <h3 className={`font-bold text-xl mb-4 flex items-center gap-2 ${isReturnMode ? 'text-rose-600' : 'text-purple-700'}`}>{isReturnMode ? <RotateCcw/> : <ShoppingCart/>} {isReturnMode ? 'Return' : 'Cart'}</h3>
+        <div className="flex-1 overflow-auto mb-4 space-y-2">
+          {cart.map((i, idx) => (<div key={idx} className="text-sm flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <span className="font-medium">{i.name}</span>
+            <span className={`font-bold ${isReturnMode ? 'text-rose-600' : 'text-gray-800'}`}>{isReturnMode ? '-' : ''}₹{i.price}</span>
+          </div>))}
+          {cart.length === 0 && <div className="text-center text-gray-400 mt-10 italic">Empty</div>}
         </div>
-        <div className="border-t pt-4 space-y-3">
-          <div className="flex justify-between font-bold text-xl"><span>Total</span><span className={isReturnMode ? 'text-rose-600' : ''}>{isReturnMode ? '-' : ''}₹{cart.reduce((a,b)=>a+b.price,0)}</span></div>
-          <input placeholder="Customer Name" className="w-full p-2 border rounded" value={meta.customerName} onChange={e => setMeta({...meta, customerName: e.target.value})} />
-          {isReturnMode && (<textarea placeholder="Reason for Return (Required)" className="w-full p-2 border rounded border-rose-300 bg-rose-50" rows="2" value={meta.returnReason} onChange={e => setMeta({...meta, returnReason: e.target.value})} />)}
-          <Button className={`w-full ${isReturnMode ? 'bg-rose-600 hover:bg-rose-700' : ''}`} onClick={handleTransaction}>{isReturnMode ? 'Process Refund' : 'Complete Sale'}</Button>
+        <div className="border-t pt-4 space-y-4">
+          <div className="flex justify-between font-bold text-2xl text-gray-800"><span>Total</span><span className={isReturnMode ? 'text-rose-600' : 'text-purple-600'}>{isReturnMode ? '-' : ''}₹{cart.reduce((a,b)=>a+b.price,0)}</span></div>
+          <input placeholder="Customer Name" className="w-full p-3 border rounded-xl bg-gray-50" value={meta.customerName} onChange={e => setMeta({...meta, customerName: e.target.value})} />
+          {isReturnMode && (<textarea placeholder="Reason for Return (Required)" className="w-full p-3 border rounded-xl border-rose-200 bg-rose-50" rows="2" value={meta.returnReason} onChange={e => setMeta({...meta, returnReason: e.target.value})} />)}
+          <Button className={`w-full py-4 text-lg shadow-xl ${isReturnMode ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : ''}`} onClick={handleTransaction}>{isReturnMode ? 'Confirm Refund' : 'Pay & Print'}</Button>
         </div>
       </Card>
     </div>
@@ -407,30 +443,30 @@ const ExpenseManager = ({ expenses, outlets, parties }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className={`text-2xl font-bold ${BRAND.primaryText}`}>Expense Tracker</h2>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800">Expense Tracker</h2>
       <Card>
-        <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
-           <div className="col-span-2"><label className="text-xs font-bold text-slate-500">Description</label><input className="w-full p-2 border rounded" value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} /></div>
-           <div><label className="text-xs font-bold text-slate-500">Amount</label><input type="number" className="w-full p-2 border rounded" value={newExp.amount} onChange={e => setNewExp({...newExp, amount: e.target.value})} /></div>
-           <div><label className="text-xs font-bold text-slate-500">Category</label><select className="w-full p-2 border rounded" value={newExp.category} onChange={e => setNewExp({...newExp, category: e.target.value})}><option>Rent</option><option>Salaries</option><option>Utilities</option><option>Stock</option><option>Marketing</option></select></div>
-           <div><label className="text-xs font-bold text-slate-500">Frequency</label><select className="w-full p-2 border rounded" value={newExp.frequency} onChange={e => setNewExp({...newExp, frequency: e.target.value})}><option>One-time</option><option>Recurring</option></select></div>
-           <div className="col-span-2"><label className="text-xs font-bold text-slate-500">Assign to</label><select className="w-full p-2 border rounded" value={newExp.assignTo} onChange={e => setNewExp({...newExp, assignTo: e.target.value})}><option value="">-- Select Entity --</option><optgroup label="Outlets">{outlets.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}</optgroup><optgroup label="Vendors">{parties.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}</optgroup></select></div>
+        <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+           <div className="col-span-2"><label className="text-xs font-bold text-gray-500 mb-1 block">Description</label><input className="w-full p-3 border rounded-xl bg-gray-50" value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} /></div>
+           <div><label className="text-xs font-bold text-gray-500 mb-1 block">Amount</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={newExp.amount} onChange={e => setNewExp({...newExp, amount: e.target.value})} /></div>
+           <div><label className="text-xs font-bold text-gray-500 mb-1 block">Category</label><select className="w-full p-3 border rounded-xl bg-gray-50" value={newExp.category} onChange={e => setNewExp({...newExp, category: e.target.value})}><option>Rent</option><option>Salaries</option><option>Utilities</option><option>Stock</option><option>Marketing</option></select></div>
+           <div><label className="text-xs font-bold text-gray-500 mb-1 block">Frequency</label><select className="w-full p-3 border rounded-xl bg-gray-50" value={newExp.frequency} onChange={e => setNewExp({...newExp, frequency: e.target.value})}><option>One-time</option><option>Recurring</option></select></div>
+           <div className="col-span-2"><label className="text-xs font-bold text-gray-500 mb-1 block">Assign to</label><select className="w-full p-3 border rounded-xl bg-gray-50" value={newExp.assignTo} onChange={e => setNewExp({...newExp, assignTo: e.target.value})}><option value="">-- Select Entity --</option><optgroup label="Outlets">{outlets.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}</optgroup><optgroup label="Vendors">{parties.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}</optgroup></select></div>
            <Button>Save Expense</Button>
         </form>
       </Card>
-      <div className="overflow-auto bg-white rounded-xl border h-96"><table className="w-full text-left text-sm"><thead className="bg-slate-50"><tr><th className="p-3">Date</th><th className="p-3">Desc</th><th className="p-3">Assigned</th><th className="p-3">Amt</th></tr></thead><tbody>{expenses.map(e => <tr key={e.id} className="border-t"><td className="p-3">{e.date}</td><td className="p-3">{e.title} <Badge>{e.category}</Badge></td><td className="p-3 text-xs">{e.assignTo}</td><td className="p-3 font-bold">₹{e.amount}</td></tr>)}</tbody></table></div>
+      <div className="overflow-hidden bg-white rounded-2xl shadow-xl border border-gray-100"><table className="w-full text-left text-sm"><thead className="bg-gray-50"><tr><th className="p-4 font-bold text-gray-600">Date</th><th className="p-4 font-bold text-gray-600">Desc</th><th className="p-4 font-bold text-gray-600">Assigned</th><th className="p-4 font-bold text-gray-600 text-right">Amt</th></tr></thead><tbody className="divide-y divide-gray-100">{expenses.map(e => <tr key={e.id} className="hover:bg-gray-50"><td className="p-4">{e.date}</td><td className="p-4">{e.title} <Badge>{e.category}</Badge></td><td className="p-4 text-xs text-gray-500">{e.assignTo}</td><td className="p-4 font-bold text-rose-600 text-right">₹{e.amount}</td></tr>)}</tbody></table></div>
     </div>
   );
 };
 
-// --- 6. INTEGRATIONS & USER SETTINGS ---
+// --- 6. EXTRAS ---
 const IntegrationsModule = () => (
   <div className="space-y-6">
-    <h2 className={`text-2xl font-bold ${BRAND.primaryText}`}>Integrations</h2>
+    <h2 className="text-2xl font-bold text-gray-800">Integrations</h2>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {[{ name: 'Instagram Shop', icon: Instagram, color: 'text-pink-600', status: 'Connect' }, { name: 'Facebook Business', icon: Facebook, color: 'text-blue-600', status: 'Connect' }, { name: 'Shopify', icon: ShoppingCart, color: 'text-green-600', status: 'Coming Soon' }].map((tool, i) => (
-        <Card key={i} className="text-center p-6 hover:shadow-md"><tool.icon size={48} className={`mx-auto mb-4 ${tool.color}`} /><h3 className="font-bold">{tool.name}</h3><Button variant="secondary" className="w-full mt-4">Connect</Button></Card>
+        <Card key={i} className="text-center p-8 hover:shadow-2xl transition-all"><tool.icon size={56} className={`mx-auto mb-4 ${tool.color}`} /><h3 className="font-bold text-lg text-gray-800">{tool.name}</h3><Button variant="secondary" className="w-full mt-6 rounded-full">Connect</Button></Card>
       ))}
     </div>
   </div>
@@ -442,18 +478,18 @@ const UserSettings = ({ appId }) => {
   useEffect(() => onSnapshot(collection(db, 'artifacts', appId, 'users', COMPANY_ID, 'team'), s => setTeam(s.docs.map(d => ({id:d.id, ...d.data()})))), [appId]);
   const handleAdd = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'users', COMPANY_ID, 'team'), { ...newMember, createdAt: serverTimestamp() }); setNewMember({ name: '', role: 'Worker', userId: '', password: '' }); };
   return (
-    <div className="space-y-4">
-      <h2 className={`text-2xl font-bold ${BRAND.primaryText}`}>User Access & Settings</h2>
-      <Card><form onSubmit={handleAdd} className="flex gap-2"><input placeholder="Name" className="p-2 border rounded" required value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} /><input placeholder="User ID" className="p-2 border rounded" required value={newMember.userId} onChange={e => setNewMember({...newMember, userId: e.target.value})} /><input placeholder="Password" type="password" className="p-2 border rounded" required value={newMember.password} onChange={e => setNewMember({...newMember, password: e.target.value})} /><select className="p-2 border rounded" value={newMember.role} onChange={e => setNewMember({...newMember, role: e.target.value})}><option>Worker</option><option>Admin</option></select><Button>Add</Button></form></Card>
-      <div className="grid gap-4 md:grid-cols-3">{team.map(m => <Card key={m.id}><h3 className="font-bold">{m.name}</h3><p className="text-sm">@{m.userId} • {m.role}</p></Card>)}</div>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800">User Settings</h2>
+      <Card><form onSubmit={handleAdd} className="flex gap-3"><input placeholder="Name" className="p-3 border rounded-xl bg-gray-50" required value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} /><input placeholder="User ID" className="p-3 border rounded-xl bg-gray-50" required value={newMember.userId} onChange={e => setNewMember({...newMember, userId: e.target.value})} /><input placeholder="Password" type="password" className="p-3 border rounded-xl bg-gray-50" required value={newMember.password} onChange={e => setNewMember({...newMember, password: e.target.value})} /><select className="p-3 border rounded-xl bg-gray-50" value={newMember.role} onChange={e => setNewMember({...newMember, role: e.target.value})}><option>Worker</option><option>Admin</option></select><Button>Add</Button></form></Card>
+      <div className="grid gap-4 md:grid-cols-3">{team.map(m => <Card key={m.id} className="flex items-center gap-4"><div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-700 text-xl">{m.name[0]}</div><div><h3 className="font-bold text-gray-800">{m.name}</h3><p className="text-sm text-gray-500">@{m.userId} • {m.role}</p></div></Card>)}</div>
     </div>
   );
 };
 
 const ReportsModule = ({ invoices, expenses }) => (
   <div className="space-y-6">
-    <div className="flex justify-between items-center"><h2 className={`text-2xl font-bold ${BRAND.primaryText}`}>Reports</h2><Button onClick={() => downloadCSV(invoices, `satika_sales.csv`)} icon={Download}>Export CSV</Button></div>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><Card><h3 className="font-bold mb-4">Recent Sales</h3><div className="overflow-auto h-64"><table className="w-full text-sm text-left"><thead><tr><th>Date</th><th>Customer</th><th>Amount</th></tr></thead><tbody>{invoices.slice(0,20).map(inv => <tr key={inv.id} className="border-b"><td className="p-2">{new Date(inv.date).toLocaleDateString()}</td><td className="p-2">{inv.customerName}</td><td className="p-2 font-bold">₹{inv.total}</td></tr>)}</tbody></table></div></Card><Card><h3 className="font-bold mb-4">Recent Expenses</h3><div className="overflow-auto h-64"><table className="w-full text-sm text-left"><thead><tr><th>Date</th><th>Cat</th><th>Amt</th></tr></thead><tbody>{expenses.slice(0,20).map(e => <tr key={e.id} className="border-b"><td className="p-2">{e.date}</td><td className="p-2">{e.category}</td><td className="p-2 font-bold text-rose-600">₹{e.amount}</td></tr>)}</tbody></table></div></Card></div>
+    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Reports</h2><Button onClick={() => downloadCSV(invoices, `satika_sales.csv`)} icon={Download}>Export CSV</Button></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><Card><h3 className="font-bold mb-4 text-gray-800">Recent Sales</h3><div className="overflow-auto h-64"><table className="w-full text-sm text-left"><thead><tr><th>Date</th><th>Customer</th><th>Amount</th></tr></thead><tbody>{invoices.slice(0,20).map(inv => <tr key={inv.id} className="border-b"><td className="p-2">{new Date(inv.date).toLocaleDateString()}</td><td className="p-2">{inv.customerName}</td><td className="p-2 font-bold">₹{inv.total}</td></tr>)}</tbody></table></div></Card><Card><h3 className="font-bold mb-4 text-gray-800">Recent Expenses</h3><div className="overflow-auto h-64"><table className="w-full text-sm text-left"><thead><tr><th>Date</th><th>Cat</th><th>Amt</th></tr></thead><tbody>{expenses.slice(0,20).map(e => <tr key={e.id} className="border-b"><td className="p-2">{e.date}</td><td className="p-2">{e.category}</td><td className="p-2 font-bold text-rose-600">₹{e.amount}</td></tr>)}</tbody></table></div></Card></div>
   </div>
 );
 
@@ -465,7 +501,6 @@ const SatikaApp = () => {
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
-  // Global Data
   const [inventory, setInventory] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -496,25 +531,26 @@ const SatikaApp = () => {
   };
 
   if (!currentUser) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#800020] p-4">
-      <Card className="w-full max-w-md p-8 space-y-4 text-center">
-        <h1 className="text-3xl font-serif font-bold text-[#800020]">SATIKA ERP</h1>
-        <form onSubmit={handleLogin} className="space-y-3">
-          <input className="w-full p-3 border rounded bg-slate-50" required value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="User ID" />
-          <input type="password" className="w-full p-3 border rounded bg-slate-50" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="Password" />
-          <Button className="w-full py-3 bg-gradient-to-r from-[#800020] to-[#500010]">{team.length === 0 ? 'Create Company Account' : 'Login'}</Button>
+    <div className="min-h-screen flex items-center justify-center bg-purple-900 p-4">
+      <Card className="w-full max-w-md p-10 space-y-6 text-center shadow-2xl">
+        <h1 className="text-4xl font-extrabold text-purple-800">SATIKA ERP</h1>
+        <p className="text-gray-400 text-sm uppercase tracking-widest">Heritage & Elegance</p>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input className="w-full p-4 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-purple-200 outline-none" required value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="User ID" />
+          <input type="password" className="w-full p-4 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-purple-200 outline-none" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="Password" />
+          <Button className="w-full py-4 text-lg bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 shadow-lg">{team.length === 0 ? 'Create Company Account' : 'Login'}</Button>
         </form>
       </Card>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800">
-      <div className="md:hidden bg-[#800020] text-white p-4 flex justify-between items-center sticky top-0 z-50"><span className="font-serif font-bold text-lg">SATIKA</span><button onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu/></button></div>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-slate-800">
+      <div className="md:hidden bg-purple-800 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md"><span className="font-bold text-lg tracking-wide">SATIKA</span><button onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu/></button></div>
 
-      <div className={`${isMenuOpen ? 'block' : 'hidden'} md:block fixed md:relative z-40 w-full md:w-64 bg-white h-full border-r flex flex-col`}>
-        <div className="p-6 bg-[#800020] text-white hidden md:block"><h1 className="text-2xl font-serif font-bold">SATIKA</h1></div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+      <div className={`${isMenuOpen ? 'block' : 'hidden'} md:block fixed md:relative z-40 w-full md:w-72 bg-white h-full border-r border-gray-100 flex flex-col shadow-xl`}>
+        <div className="p-8 bg-purple-800 text-white hidden md:block"><h1 className="text-3xl font-extrabold tracking-wide">SATIKA</h1><p className="text-purple-200 text-xs mt-1">ERP v5.0</p></div>
+        <nav className="flex-1 p-6 space-y-3 overflow-y-auto">
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
             { id: 'billing', icon: ShoppingCart, label: 'Billing & Sales' }, 
@@ -523,15 +559,21 @@ const SatikaApp = () => {
             { id: 'reports', icon: FileText, label: 'Reports' },
             { id: 'parties', icon: Store, label: 'Parties & Outlets', admin: true }, 
             { id: 'integrations', icon: Link, label: 'Integrations', admin: true }, 
-            { id: 'team', icon: Settings, label: 'User Access & Settings', admin: true }, 
+            { id: 'team', icon: Settings, label: 'User Settings', admin: true }, 
           ].map(i => (!i.admin || currentUser.role !== 'Worker') && (
-            <button key={i.id} onClick={() => {setActiveTab(i.id); setIsMenuOpen(false)}} className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeTab === i.id ? 'bg-slate-100 font-bold text-[#800020]' : 'text-slate-500 hover:bg-slate-50'}`}><i.icon size={20} />{i.label}</button>
+            <button key={i.id} onClick={() => {setActiveTab(i.id); setIsMenuOpen(false)}} className={`w-full flex items-center gap-4 p-3.5 rounded-xl transition-all font-medium ${activeTab === i.id ? 'bg-purple-50 text-purple-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-purple-600'}`}><i.icon size={20} />{i.label}</button>
           ))}
-          <button onClick={() => setCurrentUser(null)} className="w-full flex items-center gap-3 p-3 text-rose-600 mt-auto"><Lock size={20}/> Logout</button>
+          <button onClick={() => setCurrentUser(null)} className="w-full flex items-center gap-4 p-3.5 text-rose-500 mt-auto hover:bg-rose-50 rounded-xl transition-colors"><Lock size={20}/> Logout</button>
         </nav>
+        <div className="p-6 border-t border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-700">{currentUser.name[0]}</div>
+            <div><div className="font-bold text-sm text-gray-800">{currentUser.name}</div><div className="text-xs text-gray-500">{currentUser.role}</div></div>
+          </div>
+        </div>
       </div>
 
-      <main className="flex-1 p-4 overflow-auto h-[calc(100vh-60px)] md:h-screen">
+      <main className="flex-1 p-6 md:p-10 overflow-auto h-[calc(100vh-60px)] md:h-screen bg-gray-50">
         {activeTab === 'dashboard' && <Dashboard inventory={inventory} invoices={invoices} expenses={expenses} currentUser={currentUser} />}
         {activeTab === 'team' && <UserSettings appId={APP_ID} />}
         {activeTab === 'parties' && <PartiesModule />}
