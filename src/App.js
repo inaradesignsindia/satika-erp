@@ -699,7 +699,7 @@ const SatikaApp = () => {
   if (!currentUser) return (
     <div className="min-h-screen flex items-center justify-center bg-purple-900 p-4">
       <Card className="w-full max-w-md p-10 space-y-6 text-center shadow-2xl">
-        <h1 className="text-4xl font-extrabold text-purple-800">{org.name} ERP</h1>
+        <h1 className="text-4xl font-extrabold text-purple-800">SATIKA ERP</h1>
         <p className="text-gray-400 text-sm uppercase tracking-widest">Heritage & Elegance</p>
         <form onSubmit={handleLogin} className="space-y-4">
           <input className="w-full p-4 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-purple-200 outline-none" required value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="User ID" />
