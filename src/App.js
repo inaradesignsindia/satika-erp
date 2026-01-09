@@ -672,15 +672,23 @@ const SatikaApp = () => {
   const [parties, setParties] = useState([]); 
 
   useEffect(() => {
-    signInAnonymously(auth); 
-    const unsubTeam = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'team'), s => setTeam(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    const unsubInv = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'inventory'), s => setInventory(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    const unsubBill = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'invoices'), s => setInvoices(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    const unsubExp = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'expenses'), s => setExpenses(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    const unsubOut = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'outlets'), s => setOutlets(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    const unsubParty = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'parties'), s => setParties(s.docs.map(d => ({id:d.id, ...d.data()}))));
+    try {
+      signInAnonymously(auth);
+    } catch (e) {
+      console.error('Firebase auth error:', e);
+    }
+    const unsubTeam = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'team'), s => { try { setTeam(s.docs.map(d => ({id:d.id, ...d.data()}))); } catch (e) { console.error('Team error:', e); } });
+    const unsubInv = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'inventory'), s => { try { setInventory(s.docs.map(d => ({id:d.id, ...d.data()}))); } catch (e) { console.error('Inventory error:', e); } });
+    const unsubBill = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'invoices'), s => { try { setInvoices(s.docs.map(d => ({id:d.id, ...d.data()}))); } catch (e) { console.error('Invoices error:', e); } });
+    const unsubExp = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'expenses'), s => { try { setExpenses(s.docs.map(d => ({id:d.id, ...d.data()}))); } catch (e) { console.error('Expenses error:', e); } });
+    const unsubOut = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'outlets'), s => { try { setOutlets(s.docs.map(d => ({id:d.id, ...d.data()}))); } catch (e) { console.error('Outlets error:', e); } });
+    const unsubParty = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'parties'), s => { try { setParties(s.docs.map(d => ({id:d.id, ...d.data()}))); } catch (e) { console.error('Parties error:', e); } });
     const unsubOrg = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'organization', 'main'), s => {
-      if (s.exists()) setOrg(s.data());
+      try {
+        if (s.exists()) setOrg(s.data());
+      } catch (e) {
+        console.error('Error loading org:', e);
+      }
     });
     return () => { unsubTeam(); unsubInv(); unsubBill(); unsubExp(); unsubOut(); unsubParty(); unsubOrg(); };
   }, []);
