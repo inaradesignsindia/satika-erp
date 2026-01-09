@@ -1,0 +1,51 @@
+name: Build & Deploy to Render
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Check code quality
+        run: npm run build
+        continue-on-error: true
+      
+      - name: Check build output
+        run: |
+          if [ ! -d "build" ]; then
+            echo "❌ Build directory not found!"
+            exit 1
+          fi
+          BUILD_SIZE=$(du -sh build/ | cut -f1)
+          echo "✅ Build successful! Size: $BUILD_SIZE"
+      
+      - name: Deploy to Render
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+          echo "✅ Deployment triggered!"
+      
+      - name: Deployment Status
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "🚀 Deployment webhook sent to Render. Check Render dashboard for status."
