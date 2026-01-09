@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Package, Settings, Plus, Search, Menu, X, TrendingUp,
