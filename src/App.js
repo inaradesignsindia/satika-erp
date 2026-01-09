@@ -94,6 +94,7 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
     let daysToSubtract = 30;
     if (timeFilter === 'week') daysToSubtract = 7;
     if (timeFilter === '3months') daysToSubtract = 90;
+    if (timeFilter === '6months') daysToSubtract = 180;
     if (timeFilter === 'year') daysToSubtract = 365;
 
     const cutoff = now.getTime() - (daysToSubtract * msInDay);
@@ -126,9 +127,9 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
           <p className="text-gray-500 mt-1">Performance overview for: <span className="font-semibold capitalize text-purple-600">{timeFilter}</span></p>
         </div>
         <div className="flex bg-white rounded-xl border p-1 shadow-sm">
-            {['week', 'month', '3months', 'year'].map(t => (
+            {['week', 'month', '3months', '6months', 'year'].map(t => (
               <button key={t} onClick={() => setTimeFilter(t)} className={`px-4 py-2 text-sm rounded-lg transition-all font-medium capitalize ${timeFilter === t ? 'bg-purple-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
-                {t === '3months' ? 'Quarter' : t}
+                {t === '3months' ? 'Quarter' : t === '6months' ? 'Half Year' : t}
               </button>
             ))}
         </div>
@@ -142,15 +143,6 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
               <h3 className="text-3xl font-bold">₹{metrics.sales.toLocaleString()}</h3>
             </div>
             <div className="p-3 bg-white/20 rounded-xl"><TrendingUp size={24} className="text-white" /></div>
-          </div>
-        </Card>
-        <Card>
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-gray-500 text-sm font-medium mb-1">Low Stock</p>
-              <h3 className="text-3xl font-bold text-amber-600">{inventory.filter(i => i.quantity < 5).length}</h3>
-            </div>
-            <div className="p-3 bg-amber-100 rounded-xl"><AlertCircle size={24} className="text-amber-600" /></div>
           </div>
         </Card>
         {currentUser.role !== 'Worker' && (
@@ -357,7 +349,7 @@ const InventoryManager = ({ inventory, outlets }) => {
 // --- 4. BILLING & SALES ---
 const BillingSales = ({ inventory }) => {
   const [cart, setCart] = useState([]);
-  const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '' });
+  const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
   const [isReturnMode, setIsReturnMode] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -365,15 +357,43 @@ const BillingSales = ({ inventory }) => {
     if(cart.length === 0) return;
     if(isReturnMode && !meta.returnReason) return alert("Please enter a reason for return.");
 
+    if (!isReturnMode) {
+      for (const item of cart) {
+        const currentQty = inventory.find(i => i.id === item.id)?.quantity || 0;
+        if (currentQty < item.qty) {
+          alert(`Insufficient stock for ${item.name}`);
+          return;
+        }
+      }
+    }
+
+    if (isReturnMode) {
+      if (!meta.billNumber) {
+        alert("Please enter a bill number.");
+        return;
+      }
+      const bill = invoices.find(inv => inv.id === meta.billNumber && inv.status !== 'Returned');
+      if (!bill) {
+        alert("Invalid bill number.");
+        return;
+      }
+      for (const item of cart) {
+        if (!bill.items.some(i => i.id === item.id)) {
+          alert(`Item ${item.name} not in the bill.`);
+          return;
+        }
+      }
+    }
+
     const batch = writeBatch(db);
     const invRef = doc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'invoices'));
     const absTotal = cart.reduce((a,b)=>a+(b.price*b.qty),0);
     const finalTotal = isReturnMode ? -absTotal : absTotal;
 
-    batch.set(invRef, { 
-      items: cart, total: finalTotal, date: new Date().toISOString(), 
+    batch.set(invRef, {
+      items: cart, total: finalTotal, date: new Date().toISOString(),
       status: isReturnMode ? 'Returned' : 'Paid', type: isReturnMode ? 'Credit Note' : 'Invoice',
-      reason: meta.returnReason || '', ...meta 
+      reason: meta.returnReason || '', ...meta
     });
 
     cart.forEach(item => {
@@ -383,7 +403,16 @@ const BillingSales = ({ inventory }) => {
       batch.update(ref, { quantity: newQty });
     });
 
-    await batch.commit(); setCart([]); setMeta({ customerName: '', channel: 'Store', returnReason: '' });
+    const moveRef = doc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'stock_moves'));
+    batch.set(moveRef, {
+      type: isReturnMode ? 'in' : 'out',
+      items: cart,
+      date: new Date().toISOString(),
+      reason: isReturnMode ? 'Return' : 'Sale',
+      invoiceId: invRef.id
+    });
+
+    await batch.commit(); setCart([]); setMeta({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
     alert(isReturnMode ? "Return Processed & Stock Updated" : "Sale Complete!");
   };
 
@@ -424,6 +453,7 @@ const BillingSales = ({ inventory }) => {
         <div className="border-t pt-4 space-y-4">
           <div className="flex justify-between font-bold text-2xl text-gray-800"><span>Total</span><span className={isReturnMode ? 'text-rose-600' : 'text-purple-600'}>{isReturnMode ? '-' : ''}₹{cart.reduce((a,b)=>a+b.price,0)}</span></div>
           <input placeholder="Customer Name" className="w-full p-3 border rounded-xl bg-gray-50" value={meta.customerName} onChange={e => setMeta({...meta, customerName: e.target.value})} />
+          {isReturnMode && <input placeholder="Bill Number" className="w-full p-3 border rounded-xl bg-gray-50" value={meta.billNumber} onChange={e => setMeta({...meta, billNumber: e.target.value})} required />}
           {isReturnMode && (<textarea placeholder="Reason for Return (Required)" className="w-full p-3 border rounded-xl border-rose-200 bg-rose-50" rows="2" value={meta.returnReason} onChange={e => setMeta({...meta, returnReason: e.target.value})} />)}
           <Button className={`w-full py-4 text-lg shadow-xl ${isReturnMode ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : ''}`} onClick={handleTransaction}>{isReturnMode ? 'Confirm Refund' : 'Pay & Print'}</Button>
         </div>
@@ -493,6 +523,38 @@ const ReportsModule = ({ invoices, expenses }) => (
   </div>
 );
 
+const StockMovesModule = ({ }) => {
+  const [moves, setMoves] = useState([]);
+  useEffect(() => onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'stock_moves'), s => setMoves(s.docs.map(d => ({id:d.id, ...d.data()})))), []);
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800">Stock Moves</h2>
+      <div className="overflow-hidden bg-white rounded-2xl shadow-xl border border-gray-100">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="p-4 font-bold text-gray-600">Date</th>
+              <th className="p-4 font-bold text-gray-600">Type</th>
+              <th className="p-4 font-bold text-gray-600">Reason</th>
+              <th className="p-4 font-bold text-gray-600">Items</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {moves.map(m => (
+              <tr key={m.id} className="hover:bg-gray-50">
+                <td className="p-4">{new Date(m.date).toLocaleDateString()}</td>
+                <td className="p-4 capitalize">{m.type}</td>
+                <td className="p-4">{m.reason}</td>
+                <td className="p-4">{m.items.map(i => i.name).join(', ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 const SatikaApp = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -553,13 +615,14 @@ const SatikaApp = () => {
         <nav className="flex-1 p-6 space-y-3 overflow-y-auto">
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-            { id: 'billing', icon: ShoppingCart, label: 'Billing & Sales' }, 
+            { id: 'billing', icon: ShoppingCart, label: 'Billing & Sales' },
             { id: 'inventory', icon: Package, label: 'Inventory' },
             { id: 'expenses', icon: DollarSign, label: 'Expenses' },
             { id: 'reports', icon: FileText, label: 'Reports' },
-            { id: 'parties', icon: Store, label: 'Parties & Outlets', admin: true }, 
-            { id: 'integrations', icon: Link, label: 'Integrations', admin: true }, 
-            { id: 'team', icon: Settings, label: 'User Settings', admin: true }, 
+            { id: 'stockmoves', icon: ArrowRightLeft, label: 'Stock Moves' },
+            { id: 'parties', icon: Store, label: 'Parties & Outlets', admin: true },
+            { id: 'integrations', icon: Link, label: 'Integrations', admin: true },
+            { id: 'team', icon: Settings, label: 'User Settings', admin: true },
           ].map(i => (!i.admin || currentUser.role !== 'Worker') && (
             <button key={i.id} onClick={() => {setActiveTab(i.id); setIsMenuOpen(false)}} className={`w-full flex items-center gap-4 p-3.5 rounded-xl transition-all font-medium ${activeTab === i.id ? 'bg-purple-50 text-purple-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-purple-600'}`}><i.icon size={20} />{i.label}</button>
           ))}
@@ -582,6 +645,7 @@ const SatikaApp = () => {
         {activeTab === 'billing' && <BillingSales inventory={inventory} />}
         {activeTab === 'expenses' && <ExpenseManager expenses={expenses} outlets={outlets} parties={parties} />}
         {activeTab === 'reports' && <ReportsModule invoices={invoices} expenses={expenses} />}
+        {activeTab === 'stockmoves' && <StockMovesModule />}
       </main>
     </div>
   );
