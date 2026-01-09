@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  LayoutDashboard, Package, Settings, Plus, Search, Menu, X, TrendingUp, 
-  AlertCircle, FileText, Upload, Instagram, Facebook, Store, DollarSign, 
-  CheckCircle, RotateCcw, Wallet, PieChart, Download, Globe, Users, Lock, 
-  ArrowRightLeft, Coins, ShoppingCart, Trash2, Link, Truck, MapPin, RefreshCw, Mail, Calendar
+import {
+  LayoutDashboard, Package, Settings, Plus, Search, Menu, X, TrendingUp,
+  AlertCircle, FileText, Upload, Instagram, Facebook, Store, DollarSign,
+  CheckCircle, RotateCcw, Wallet, PieChart, Download, Globe, Users, Lock,
+  ArrowRightLeft, Coins, ShoppingCart, Trash2, Link, Truck, MapPin, RefreshCw, Mail, Calendar, Building
 } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { 
-  getFirestore, collection, addDoc, query, onSnapshot, deleteDoc, doc, 
-  serverTimestamp, writeBatch, orderBy
+import {
+  getFirestore, collection, addDoc, query, onSnapshot, deleteDoc, doc,
+  serverTimestamp, writeBatch, orderBy, setDoc
 } from "firebase/firestore";
 
 // --- CONFIGURATION ---
@@ -217,6 +217,7 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
 const PartiesModule = () => {
   const [outlets, setOutlets] = useState([]);
   const [parties, setParties] = useState([]);
+  const [org, setOrg] = useState({ name: 'SATIKA', logo: '', location: '', address: '', phone: '', fax: '', billingAddress: '', website: '', instagram: '', facebook: '', contact: '', email: '' });
   const [newOutlet, setNewOutlet] = useState({ name: '', type: 'Store' });
   const [newParty, setNewParty] = useState({ name: '', type: 'Vendor', contact: '' });
 
@@ -347,11 +348,72 @@ const InventoryManager = ({ inventory, outlets }) => {
 };
 
 // --- 4. BILLING & SALES ---
-const BillingSales = ({ inventory, invoices }) => {
+const InvoiceModal = ({ invoice, onClose, org }) => {
+  const handlePrint = () => {
+    window.print();
+  };
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-2xl bg-white print:shadow-none print:border-0">
+        <div className="text-center mb-4">
+          {org.logo && <img src={org.logo} alt="Logo" className="h-16 mx-auto mb-2" />}
+          <h1 className="text-2xl font-bold">{org.name}</h1>
+          <p>{org.address}</p>
+          <p>Phone: {org.phone}</p>
+          <p>Email: {org.email}</p>
+        </div>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Invoice</h2>
+          <div className="flex gap-2">
+            <Button onClick={handlePrint} icon={Download}>Print</Button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <div>
+              <p className="font-bold">Bill Number: {invoice.id}</p>
+              <p>Date: {new Date(invoice.date).toLocaleDateString()}</p>
+              <p>Customer: {invoice.customerName}</p>
+              <p>Channel: {invoice.channel}</p>
+            </div>
+          </div>
+          <table className="w-full text-left border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 p-2">Item</th>
+                <th className="border border-gray-300 p-2">Qty</th>
+                <th className="border border-gray-300 p-2">Price</th>
+                <th className="border border-gray-300 p-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoice.items.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="border border-gray-300 p-2">{item.name}</td>
+                  <td className="border border-gray-300 p-2">{item.qty}</td>
+                  <td className="border border-gray-300 p-2">₹{item.price}</td>
+                  <td className="border border-gray-300 p-2">₹{item.price * item.qty}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-right font-bold text-xl">
+            Total: ₹{invoice.total}
+          </div>
+        </div>
+      </Card>
+      {showInvoice && <InvoiceModal invoice={showInvoice} onClose={() => setShowInvoice(null)} org={org} />}
+    </div>
+  );
+};
+
+const BillingSales = ({ inventory, invoices, currentUser, org }) => {
   const [cart, setCart] = useState([]);
-  const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
+  const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '', billNumber: '', date: new Date().toISOString().split('T')[0] });
   const [isReturnMode, setIsReturnMode] = useState(false);
   const [search, setSearch] = useState("");
+  const [showInvoice, setShowInvoice] = useState(null);
 
   const handleTransaction = async () => {
     if(cart.length === 0) return;
@@ -389,9 +451,10 @@ const BillingSales = ({ inventory, invoices }) => {
     const invRef = doc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'invoices'));
     const absTotal = cart.reduce((a,b)=>a+(b.price*b.qty),0);
     const finalTotal = isReturnMode ? -absTotal : absTotal;
+    const invoiceDate = meta.date + 'T' + new Date().toISOString().split('T')[1];
 
     batch.set(invRef, {
-      items: cart, total: finalTotal, date: new Date().toISOString(),
+      items: cart, total: finalTotal, date: invoiceDate,
       status: isReturnMode ? 'Returned' : 'Paid', type: isReturnMode ? 'Credit Note' : 'Invoice',
       reason: meta.returnReason || '', ...meta
     });
@@ -412,8 +475,12 @@ const BillingSales = ({ inventory, invoices }) => {
       invoiceId: invRef.id
     });
 
-    await batch.commit(); setCart([]); setMeta({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
-    alert(isReturnMode ? "Return Processed & Stock Updated" : "Sale Complete!");
+    await batch.commit(); setCart([]); setMeta({ customerName: '', channel: 'Store', returnReason: '', billNumber: '', date: new Date().toISOString().split('T')[0] });
+    if (!isReturnMode) {
+      setShowInvoice({ id: invRef.id, items: cart, total: finalTotal, customerName: meta.customerName || 'Walk-in', channel: meta.channel, date: invoiceDate, type: 'Invoice' });
+    } else {
+      alert("Return Processed & Stock Updated");
+    }
   };
 
   const filteredProducts = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -453,6 +520,7 @@ const BillingSales = ({ inventory, invoices }) => {
         <div className="border-t pt-4 space-y-4">
           <div className="flex justify-between font-bold text-2xl text-gray-800"><span>Total</span><span className={isReturnMode ? 'text-rose-600' : 'text-purple-600'}>{isReturnMode ? '-' : ''}₹{cart.reduce((a,b)=>a+b.price,0)}</span></div>
           <input placeholder="Customer Name" className="w-full p-3 border rounded-xl bg-gray-50" value={meta.customerName} onChange={e => setMeta({...meta, customerName: e.target.value})} />
+          {currentUser.role === 'Owner' && <input type="date" className="w-full p-3 border rounded-xl bg-gray-50" value={meta.date} onChange={e => setMeta({...meta, date: e.target.value})} />}
           {isReturnMode && <input placeholder="Bill Number" className="w-full p-3 border rounded-xl bg-gray-50" value={meta.billNumber} onChange={e => setMeta({...meta, billNumber: e.target.value})} required />}
           {isReturnMode && (<textarea placeholder="Reason for Return (Required)" className="w-full p-3 border rounded-xl border-rose-200 bg-rose-50" rows="2" value={meta.returnReason} onChange={e => setMeta({...meta, returnReason: e.target.value})} />)}
           <Button className={`w-full py-4 text-lg shadow-xl ${isReturnMode ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : ''}`} onClick={handleTransaction}>{isReturnMode ? 'Confirm Refund' : 'Pay & Print'}</Button>
@@ -501,6 +569,38 @@ const IntegrationsModule = () => (
     </div>
   </div>
 );
+
+const OrgSettings = ({ org, setOrg }) => {
+  const [form, setForm] = useState(org);
+  const handleSave = async () => {
+    const ref = doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'organization', 'main');
+    await setDoc(ref, form);
+    setOrg(form);
+    alert('Saved');
+  };
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800">Organization Settings</h2>
+      <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input placeholder="Organization Name" className="p-3 border rounded-xl bg-gray-50" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+          <input placeholder="Logo URL" className="p-3 border rounded-xl bg-gray-50" value={form.logo} onChange={e => setForm({...form, logo: e.target.value})} />
+          <input placeholder="Location" className="p-3 border rounded-xl bg-gray-50" value={form.location} onChange={e => setForm({...form, location: e.target.value})} />
+          <input placeholder="Address" className="p-3 border rounded-xl bg-gray-50" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
+          <input placeholder="Phone" className="p-3 border rounded-xl bg-gray-50" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+          <input placeholder="Fax" className="p-3 border rounded-xl bg-gray-50" value={form.fax} onChange={e => setForm({...form, fax: e.target.value})} />
+          <input placeholder="Billing Address" className="p-3 border rounded-xl bg-gray-50" value={form.billingAddress} onChange={e => setForm({...form, billingAddress: e.target.value})} />
+          <input placeholder="Website URL" className="p-3 border rounded-xl bg-gray-50" value={form.website} onChange={e => setForm({...form, website: e.target.value})} />
+          <input placeholder="Instagram" className="p-3 border rounded-xl bg-gray-50" value={form.instagram} onChange={e => setForm({...form, instagram: e.target.value})} />
+          <input placeholder="Facebook" className="p-3 border rounded-xl bg-gray-50" value={form.facebook} onChange={e => setForm({...form, facebook: e.target.value})} />
+          <input placeholder="Primary Contact" className="p-3 border rounded-xl bg-gray-50" value={form.contact} onChange={e => setForm({...form, contact: e.target.value})} />
+          <input placeholder="Email" className="p-3 border rounded-xl bg-gray-50" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
+        </div>
+        <Button onClick={handleSave} className="mt-4">Save</Button>
+      </Card>
+    </div>
+  );
+};
 
 const UserSettings = ({ appId }) => {
   const [team, setTeam] = useState([]);
@@ -578,7 +678,10 @@ const SatikaApp = () => {
     const unsubExp = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'expenses'), s => setExpenses(s.docs.map(d => ({id:d.id, ...d.data()}))));
     const unsubOut = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'outlets'), s => setOutlets(s.docs.map(d => ({id:d.id, ...d.data()}))));
     const unsubParty = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'parties'), s => setParties(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    return () => { unsubTeam(); unsubInv(); unsubBill(); unsubExp(); unsubOut(); unsubParty(); };
+    const unsubOrg = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'organization', 'main'), s => {
+      if (s.exists()) setOrg(s.data());
+    });
+    return () => { unsubTeam(); unsubInv(); unsubBill(); unsubExp(); unsubOut(); unsubParty(); unsubOrg(); };
   }, []);
 
   const handleLogin = async (e) => {
@@ -595,7 +698,7 @@ const SatikaApp = () => {
   if (!currentUser) return (
     <div className="min-h-screen flex items-center justify-center bg-purple-900 p-4">
       <Card className="w-full max-w-md p-10 space-y-6 text-center shadow-2xl">
-        <h1 className="text-4xl font-extrabold text-purple-800">SATIKA ERP</h1>
+        <h1 className="text-4xl font-extrabold text-purple-800">{org.name} ERP</h1>
         <p className="text-gray-400 text-sm uppercase tracking-widest">Heritage & Elegance</p>
         <form onSubmit={handleLogin} className="space-y-4">
           <input className="w-full p-4 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-purple-200 outline-none" required value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="User ID" />
@@ -608,10 +711,10 @@ const SatikaApp = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-slate-800">
-      <div className="md:hidden bg-purple-800 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md"><span className="font-bold text-lg tracking-wide">SATIKA</span><button onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu/></button></div>
+      <div className="md:hidden bg-purple-800 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md"><span className="font-bold text-lg tracking-wide">{org.name}</span><button onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu/></button></div>
 
       <div className={`${isMenuOpen ? 'block' : 'hidden'} md:block fixed md:relative z-40 w-full md:w-72 bg-white h-full border-r border-gray-100 flex flex-col shadow-xl`}>
-        <div className="p-8 bg-purple-800 text-white hidden md:block"><h1 className="text-3xl font-extrabold tracking-wide">SATIKA</h1><p className="text-purple-200 text-xs mt-1">ERP v5.0</p></div>
+        <div className="p-8 bg-purple-800 text-white hidden md:block"><h1 className="text-3xl font-extrabold tracking-wide">{org.name}</h1><p className="text-purple-200 text-xs mt-1">ERP v5.0</p></div>
         <nav className="flex-1 p-6 space-y-3 overflow-y-auto">
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -620,6 +723,7 @@ const SatikaApp = () => {
             { id: 'expenses', icon: DollarSign, label: 'Expenses' },
             { id: 'reports', icon: FileText, label: 'Reports' },
             { id: 'stockmoves', icon: ArrowRightLeft, label: 'Stock Moves' },
+            { id: 'org', icon: Building, label: 'Organization', admin: true },
             { id: 'parties', icon: Store, label: 'Parties & Outlets', admin: true },
             { id: 'integrations', icon: Link, label: 'Integrations', admin: true },
             { id: 'team', icon: Settings, label: 'User Settings', admin: true },
@@ -638,11 +742,12 @@ const SatikaApp = () => {
 
       <main className="flex-1 p-6 md:p-10 overflow-auto h-[calc(100vh-60px)] md:h-screen bg-gray-50">
         {activeTab === 'dashboard' && <Dashboard inventory={inventory} invoices={invoices} expenses={expenses} currentUser={currentUser} />}
+        {activeTab === 'org' && <OrgSettings org={org} setOrg={setOrg} />}
         {activeTab === 'team' && <UserSettings appId={APP_ID} />}
         {activeTab === 'parties' && <PartiesModule />}
         {activeTab === 'integrations' && <IntegrationsModule />}
         {activeTab === 'inventory' && <InventoryManager inventory={inventory} outlets={outlets} />}
-        {activeTab === 'billing' && <BillingSales inventory={inventory} invoices={invoices} />}
+        {activeTab === 'billing' && <BillingSales inventory={inventory} invoices={invoices} currentUser={currentUser} org={org} />}
         {activeTab === 'expenses' && <ExpenseManager expenses={expenses} outlets={outlets} parties={parties} />}
         {activeTab === 'reports' && <ReportsModule invoices={invoices} expenses={expenses} />}
         {activeTab === 'stockmoves' && <StockMovesModule />}
