@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Package, Settings, Plus, Search, Menu, X, TrendingUp,
@@ -476,7 +477,7 @@ const BillingSales = ({ inventory, invoices, currentUser, org }) => {
 
     await batch.commit(); setCart([]); setMeta({ customerName: '', channel: 'Store', returnReason: '', billNumber: '', date: new Date().toISOString().split('T')[0] });
     if (!isReturnMode) {
-      setShowInvoice({ id: invRef.id, items: cart, total: finalTotal, customerName: meta.customerName || 'Walk-in', channel: meta.channel, date: new Date().toISOString(), type });
+      setShowInvoice({ id: invRef.id, items: cart, total: finalTotal, customerName: meta.customerName || 'Walk-in', channel: meta.channel, date: new Date().toISOString(), type: isReturnMode ? 'Credit Note' : 'Invoice' });
     } else {
       alert("Return Processed & Stock Updated");
     }
