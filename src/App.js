@@ -347,7 +347,7 @@ const InventoryManager = ({ inventory, outlets }) => {
 };
 
 // --- 4. BILLING & SALES ---
-const BillingSales = ({ inventory }) => {
+const BillingSales = ({ inventory, invoices }) => {
   const [cart, setCart] = useState([]);
   const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
   const [isReturnMode, setIsReturnMode] = useState(false);
@@ -642,7 +642,7 @@ const SatikaApp = () => {
         {activeTab === 'parties' && <PartiesModule />}
         {activeTab === 'integrations' && <IntegrationsModule />}
         {activeTab === 'inventory' && <InventoryManager inventory={inventory} outlets={outlets} />}
-        {activeTab === 'billing' && <BillingSales inventory={inventory} />}
+        {activeTab === 'billing' && <BillingSales inventory={inventory} invoices={invoices} />}
         {activeTab === 'expenses' && <ExpenseManager expenses={expenses} outlets={outlets} parties={parties} />}
         {activeTab === 'reports' && <ReportsModule invoices={invoices} expenses={expenses} />}
         {activeTab === 'stockmoves' && <StockMovesModule />}
