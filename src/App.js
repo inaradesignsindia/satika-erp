@@ -347,11 +347,65 @@ const InventoryManager = ({ inventory, outlets }) => {
 };
 
 // --- 4. BILLING & SALES ---
+const InvoiceModal = ({ invoice, onClose }) => {
+  const handlePrint = () => {
+    window.print();
+  };
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-2xl bg-white print:shadow-none print:border-0">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Invoice</h2>
+          <div className="flex gap-2">
+            <Button onClick={handlePrint} icon={Download}>Print</Button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <div>
+              <p className="font-bold">Bill Number: {invoice.id}</p>
+              <p>Date: {new Date(invoice.date).toLocaleDateString()}</p>
+              <p>Customer: {invoice.customerName}</p>
+              <p>Channel: {invoice.channel}</p>
+            </div>
+          </div>
+          <table className="w-full text-left border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 p-2">Item</th>
+                <th className="border border-gray-300 p-2">Qty</th>
+                <th className="border border-gray-300 p-2">Price</th>
+                <th className="border border-gray-300 p-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoice.items.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="border border-gray-300 p-2">{item.name}</td>
+                  <td className="border border-gray-300 p-2">{item.qty}</td>
+                  <td className="border border-gray-300 p-2">₹{item.price}</td>
+                  <td className="border border-gray-300 p-2">₹{item.price * item.qty}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-right font-bold text-xl">
+            Total: ₹{invoice.total}
+          </div>
+        </div>
+      </Card>
+      {showInvoice && <InvoiceModal invoice={showInvoice} onClose={() => setShowInvoice(null)} />}
+    </div>
+  );
+};
+
 const BillingSales = ({ inventory, invoices }) => {
   const [cart, setCart] = useState([]);
   const [meta, setMeta] = useState({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
   const [isReturnMode, setIsReturnMode] = useState(false);
   const [search, setSearch] = useState("");
+  const [showInvoice, setShowInvoice] = useState(null);
 
   const handleTransaction = async () => {
     if(cart.length === 0) return;
@@ -413,7 +467,11 @@ const BillingSales = ({ inventory, invoices }) => {
     });
 
     await batch.commit(); setCart([]); setMeta({ customerName: '', channel: 'Store', returnReason: '', billNumber: '' });
-    alert(isReturnMode ? "Return Processed & Stock Updated" : "Sale Complete!");
+    if (!isReturnMode) {
+      setShowInvoice({ id: invRef.id, items: cart, total: finalTotal, customerName: meta.customerName || 'Walk-in', channel: meta.channel, date: new Date().toISOString(), type });
+    } else {
+      alert("Return Processed & Stock Updated");
+    }
   };
 
   const filteredProducts = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
