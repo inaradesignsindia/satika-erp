@@ -13,7 +13,7 @@ import {
   serverTimestamp, writeBatch, orderBy, setDoc
 } from "firebase/firestore";
 
-// --- CONFIGURATION ---
+// --- CONFIGURATIONS ---
 const firebaseConfig = {
   apiKey: "AIzaSyCTrenpSXNMR78_5r3zXAmD5aXO7jFxxD4",
   authDomain: "satika-cc4c3.firebaseapp.com",
