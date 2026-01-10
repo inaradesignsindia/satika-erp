@@ -59,17 +59,10 @@ const Badge = ({ children, type = "default" }) => {
   return <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[type] || styles.default}`}>{children}</span>;
 };
 
-const Button = ({ children, onClick, variant = "primary", icon: Icon, className = "", disabled = false }) => {
-  const variants = {
-    primary: `${BRAND.primary} text-white ${BRAND.primaryHover} shadow-lg shadow-purple-600/30`,
-    secondary: "bg-gray-100 text-gray-700 hover:bg-gray-200",
-    danger: "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200",
-    ghost: "text-gray-500 hover:bg-gray-100",
-  };
   return (
-    <button onClick={onClick} disabled={disabled} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all active:scale-95 disabled:opacity-50 ${variants[variant]} ${className}`}>
-      {Icon && <Icon size={18} />}{children}
-    </button>
+    <div className={`toast ${type}`}>
+      {message}
+    </div>
   );
 };
 
@@ -214,138 +207,297 @@ const Dashboard = ({ inventory, invoices, expenses, currentUser }) => {
   );
 };
 
-// --- 2. PARTIES & OUTLETS ---
-const PartiesModule = () => {
-  const [outlets, setOutlets] = useState([]);
-  const [parties, setParties] = useState([]);
-  const [newOutlet, setNewOutlet] = useState({ name: '', type: 'Store' });
-  const [newParty, setNewParty] = useState({ name: '', type: 'Vendor', contact: '' });
+// Loading Spinner
+const LoadingSpinner = () => (
+  <div className="loading" style={{ marginRight: '8px' }}></div>
+);
 
-  useEffect(() => {
-    const unsubOut = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'outlets'), s => setOutlets(s.docs.map(d=>({id:d.id, ...d.data()}))));
-    const unsubParties = onSnapshot(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'parties'), s => setParties(s.docs.map(d=>({id:d.id, ...d.data()}))));
-    return () => { unsubOut(); unsubParties(); };
+function App() {
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [inventory, setInventory] = useState([]);
+  const [bills, setBills] = useState([]);
+  const [returns, setReturns] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+  });
+
+  // Show toast notification
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type });
   }, []);
 
-  const addOutlet = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'outlets'), newOutlet); setNewOutlet({ name: '', type: 'Store' }); };
-  const addParty = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'parties'), newParty); setNewParty({ name: '', type: 'Vendor', contact: '' }); };
-  const handleDelete = async (coll, id) => { if(window.confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, coll, id)); }
-
-  return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800">Parties, Vendors & Outlets</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-4">
-          <h3 className="font-bold flex items-center gap-2 text-purple-700"><Store size={20}/> Sales Channels</h3>
-          <Card>
-            <form onSubmit={addOutlet} className="flex gap-3">
-              <input className="flex-1 p-3 border rounded-xl bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-purple-200" placeholder="Outlet Name" value={newOutlet.name} onChange={e=>setNewOutlet({...newOutlet, name: e.target.value})} required />
-              <select className="p-3 border rounded-xl bg-gray-50 outline-none" value={newOutlet.type} onChange={e=>setNewOutlet({...newOutlet, type: e.target.value})}><option>Store</option><option>Warehouse</option><option>Online</option></select>
-              <Button>Add</Button>
-            </form>
-          </Card>
-          <div className="space-y-3">{outlets.map(o => <div key={o.id} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div><div className="font-bold text-gray-800">{o.name}</div><div className="text-xs text-gray-500">{o.type}</div></div><button onClick={()=>handleDelete('outlets', o.id)} className="text-gray-400 hover:text-rose-600"><Trash2 size={18}/></button></div>)}</div>
-        </div>
-        <div className="space-y-4">
-          <h3 className="font-bold flex items-center gap-2 text-purple-700"><Truck size={20}/> Vendors & Parties</h3>
-          <Card>
-            <form onSubmit={addParty} className="space-y-3">
-              <div className="flex gap-3"><input className="flex-1 p-3 border rounded-xl bg-gray-50" placeholder="Name" value={newParty.name} onChange={e=>setNewParty({...newParty, name: e.target.value})} required /><select className="p-3 border rounded-xl bg-gray-50" value={newParty.type} onChange={e=>setNewParty({...newParty, type: e.target.value})}><option>Vendor</option><option>Owner</option><option>Manager</option></select></div>
-              <div className="flex gap-3"><input className="flex-1 p-3 border rounded-xl bg-gray-50" placeholder="Contact Info" value={newParty.contact} onChange={e=>setNewParty({...newParty, contact: e.target.value})} /><Button>Add</Button></div>
-            </form>
-          </Card>
-          <div className="space-y-3">{parties.map(p => <div key={p.id} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div><div className="font-bold text-gray-800">{p.name}</div><div className="text-xs text-gray-500">{p.type} • {p.contact}</div></div><button onClick={()=>handleDelete('parties', p.id)} className="text-gray-400 hover:text-rose-600"><Trash2 size={18}/></button></div>)}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- 3. INVENTORY ---
-const InventoryManager = ({ inventory, outlets }) => {
-  const [item, setItem] = useState({ name: "", sku: "", quantity: 0, price: 0, cost: 0, location: "" });
-  const [showBulk, setShowBulk] = useState(false);
-  const [bulkData, setBulkData] = useState("");
-  const [search, setSearch] = useState("");
-
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    await addDoc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'inventory'), { 
-      ...item, quantity: parseInt(item.quantity), price: parseFloat(item.price), cost: parseFloat(item.cost), location: item.location || 'Unassigned' 
+  // Show confirmation dialog
+  const showConfirmDialog = useCallback((message, onConfirm) => {
+    setConfirmDialog({
+      isOpen: true,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      },
+      onCancel: () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      },
     });
-    setItem({ name: "", sku: "", quantity: 0, price: 0, cost: 0, location: "" });
-  };
+  }, []);
 
-  const handleBulkUpload = async () => {
-    const lines = bulkData.trim().split('\n');
-    let count = 0; const batch = writeBatch(db); 
-    for (let i = 0; i < Math.min(lines.length, 50); i++) {
-        const line = lines[i];
-        const [name, sku, quantity, price, loc] = line.split(',');
-        if (name && price) {
-            const ref = doc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'inventory'));
-            batch.set(ref, {
-                name: name.trim(), sku: sku?.trim() || `SKU-${Math.floor(Math.random()*1000)}`,
-                quantity: parseInt(quantity) || 0, price: parseFloat(price) || 0,
-                cost: parseFloat(price) * 0.7 || 0, location: loc?.trim() || "Main Warehouse", createdAt: serverTimestamp()
-            });
-            count++;
-        }
+  // Load data from localStorage on mount
+  useEffect(() => {
+    try {
+      setIsLoading(true);
+      const savedInventory = localStorage.getItem('inventory');
+      const savedBills = localStorage.getItem('bills');
+      const savedReturns = localStorage.getItem('returns');
+
+      if (savedInventory) setInventory(JSON.parse(savedInventory));
+      if (savedBills) setBills(JSON.parse(savedBills));
+      if (savedReturns) setReturns(JSON.parse(savedReturns));
+
+      setTimeout(() => setIsLoading(false), 500);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      showToast('Error loading saved data', 'error');
+      setIsLoading(false);
     }
-    await batch.commit(); setShowBulk(false); setBulkData(""); alert(`Uploaded ${count} items!`);
-  };
+  }, [showToast]);
 
-  const handleDelete = async (id) => { if(window.confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'inventory', id)); };
-  const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || i.sku?.toLowerCase().includes(search.toLowerCase()));
+  // Save inventory to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('inventory', JSON.stringify(inventory));
+    } catch (error) {
+      console.error('Error saving inventory:', error);
+      showToast('Error saving inventory data', 'error');
+    }
+  }, [inventory, showToast]);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-         <h2 className="text-2xl font-bold text-gray-800">Inventory</h2>
-         <Button variant="secondary" onClick={() => setShowBulk(true)} icon={Upload}>Bulk Import</Button>
-      </div>
+  // Save bills to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('bills', JSON.stringify(bills));
+    } catch (error) {
+      console.error('Error saving bills:', error);
+      showToast('Error saving bills data', 'error');
+    }
+  }, [bills, showToast]);
 
-      <Card>
-        <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
-          <div className="col-span-2"><label className="text-xs font-bold text-gray-500 mb-1 block">Item Name</label><input placeholder="Product Name" className="w-full p-3 border rounded-xl bg-gray-50" required value={item.name} onChange={e => setItem({...item, name: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-gray-500 mb-1 block">SKU</label><input placeholder="SKU-001" className="w-full p-3 border rounded-xl bg-gray-50" value={item.sku} onChange={e => setItem({...item, sku: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-gray-500 mb-1 block">Qty</label><input type="number" placeholder="0" className="w-full p-3 border rounded-xl bg-gray-50" required value={item.quantity} onChange={e => setItem({...item, quantity: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-gray-500 mb-1 block">Price</label><input type="number" placeholder="0.00" className="w-full p-3 border rounded-xl bg-gray-50" required value={item.price} onChange={e => setItem({...item, price: e.target.value})} /></div>
-          <div><label className="text-xs font-bold text-gray-500 mb-1 block">Location</label>
-            <select className="w-full p-3 border rounded-xl bg-gray-50" value={item.location} onChange={e => setItem({...item, location: e.target.value})}>
-              <option value="">Select Location</option>
-              {outlets.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
-            </select>
-          </div>
-          <div className="col-span-2 lg:col-span-1"><Button className="w-full">Add Item</Button></div>
-        </form>
-      </Card>
+  // Save returns to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('returns', JSON.stringify(returns));
+    } catch (error) {
+      console.error('Error saving returns:', error);
+      showToast('Error saving returns data', 'error');
+    }
+  }, [returns, showToast]);
 
-      {showBulk && (
-         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-           <Card className="w-full max-w-lg h-96 flex flex-col relative">
-              <div className="flex justify-between mb-4 font-bold text-lg"><span>Bulk Upload (CSV)</span><button onClick={()=>setShowBulk(false)}><X/></button></div>
-              <p className="text-xs text-gray-500 mb-2">Format: Name, SKU, Quantity, Price, Location</p>
-              <textarea className="flex-1 border p-4 rounded-xl bg-gray-50 font-mono text-sm" placeholder={`Silk Saree, SKU-99, 10, 2500, Shelf A\nCotton Suit, SKU-100, 5, 1200, Shelf B`} value={bulkData} onChange={e => setBulkData(e.target.value)}></textarea>
-              <Button className="mt-4" onClick={handleBulkUpload}>Process Upload</Button>
-           </Card>
-         </div>
-      )}
+  const handleAddInventory = useCallback((product) => {
+    try {
+      const existingProduct = inventory.find(p => p.id === product.id);
 
-      <div className="relative">
-        <Search className="absolute left-4 top-3.5 text-gray-400" size={20}/>
-        <input className="w-full pl-12 p-3 border rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Search inventory..." value={search} onChange={e=>setSearch(e.target.value)} />
-      </div>
+      if (existingProduct) {
+        setInventory(inventory.map(p =>
+          p.id === product.id
+            ? { ...p, quantity: p.quantity + product.quantity }
+            : p
+        ));
+        showToast(`Updated ${product.name} quantity`, 'success');
+      } else {
+        setInventory([...inventory, { ...product, id: Date.now().toString() }]);
+        showToast(`Added ${product.name} to inventory`, 'success');
+      }
+    } catch (error) {
+      console.error('Error adding inventory:', error);
+      showToast('Error adding product to inventory', 'error');
+    }
+  }, [inventory, showToast]);
 
-      <div className="overflow-hidden bg-white rounded-2xl shadow-xl border border-gray-100">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 font-bold text-gray-600">Name</th><th className="p-4 font-bold text-gray-600">SKU</th><th className="p-4 font-bold text-gray-600">Location</th><th className="p-4 font-bold text-gray-600">Stock</th><th className="p-4 font-bold text-gray-600">Price</th><th className="p-4 text-center">Action</th></tr></thead>
-          <tbody className="divide-y divide-gray-100">{filtered.map(i => <tr key={i.id} className="hover:bg-purple-50 transition-colors"><td className="p-4 font-medium text-gray-800">{i.name}</td><td className="p-4 text-gray-500">{i.sku}</td><td className="p-4"><Badge>{i.location}</Badge></td><td className="p-4 font-bold">{i.quantity}</td><td className="p-4">₹{i.price}</td><td className="p-4 text-center"><button onClick={()=>handleDelete(i.id)}><Trash2 size={18} className="text-gray-300 hover:text-rose-500"/></button></td></tr>)}</tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
+  const handleAddBill = useCallback((billData) => {
+    try {
+      const newBill = {
+        ...billData,
+        id: Date.now().toString(),
+        date: new Date().toLocaleDateString(),
+        billNumber: `BILL-${Date.now()}`,
+      };
+
+      // Validate that all items have stock
+      const insufficientStock = billData.items.some(item => {
+        const inventoryItem = inventory.find(inv => inv.id === item.productId);
+        return !inventoryItem || inventoryItem.quantity < item.quantity;
+      });
+
+      if (insufficientStock) {
+        showToast('Insufficient stock for one or more items', 'error');
+        return;
+      }
+
+      // Validate bill has items
+      if (!billData.items || billData.items.length === 0) {
+        showToast('Please add at least one item to the bill', 'error');
+        return;
+      }
+
+      // Update inventory
+      const updatedInventory = inventory.map(invItem => {
+        const billItem = billData.items.find(item => item.productId === invItem.id);
+        if (billItem) {
+          return { ...invItem, quantity: Math.max(0, invItem.quantity - billItem.quantity) };
+        }
+        return invItem;
+      });
+
+      setInventory(updatedInventory);
+      setBills([...bills, newBill]);
+      showToast(`Bill ${newBill.billNumber} created successfully!`, 'success');
+    } catch (error) {
+      console.error('Error creating bill:', error);
+      showToast('Error creating bill. Please try again.', 'error');
+    }
+  }, [inventory, bills, showToast]);
+
+  const handleAddReturn = useCallback((returnData) => {
+    try {
+      // Validate bill number is provided
+      if (!returnData.billNumber || returnData.billNumber.trim() === '') {
+        showToast('Bill number is required for returns', 'error');
+        return;
+      }
+
+      // Validate bill number exists
+      const matchingBill = bills.find(bill => bill.billNumber === returnData.billNumber);
+      if (!matchingBill) {
+        showToast('Bill number does not exist. Please enter a valid bill number.', 'error');
+        return;
+      }
+
+      // Validate return has items
+      if (!returnData.items || returnData.items.length === 0) {
+        showToast('Please add at least one item to return', 'error');
+        return;
+      }
+
+      // Validate that returned items exist in the selected bill
+      const invalidItems = returnData.items.some(item => {
+        return !matchingBill.items.some(billItem => billItem.productId === item.productId);
+      });
+
+      if (invalidItems) {
+        showToast('One or more items do not exist in the selected bill', 'error');
+        return;
+      }
+
+      // Validate returned quantities don't exceed original bill quantities
+      const excessiveQuantities = returnData.items.some(item => {
+        const billItem = matchingBill.items.find(billItem => billItem.productId === item.productId);
+        return billItem && item.quantity > billItem.quantity;
+      });
+
+      if (excessiveQuantities) {
+        showToast('Return quantity exceeds the quantity in the original bill', 'error');
+        return;
+      }
+
+      const newReturn = {
+        ...returnData,
+        id: Date.now().toString(),
+        date: new Date().toLocaleDateString(),
+      };
+
+      // Update inventory by adding back returned quantities
+      const updatedInventory = inventory.map(invItem => {
+        const returnItem = returnData.items.find(item => item.productId === invItem.id);
+        if (returnItem) {
+          return { ...invItem, quantity: invItem.quantity + returnItem.quantity };
+        }
+        return invItem;
+      });
+
+      setInventory(updatedInventory);
+      setReturns([...returns, newReturn]);
+      showToast('Return processed successfully!', 'success');
+    } catch (error) {
+      console.error('Error processing return:', error);
+      showToast('Error processing return. Please try again.', 'error');
+    }
+  }, [inventory, bills, returns, showToast]);
+
+  const getDashboardData = useCallback(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.floor(currentMonth / 3);
+
+    const getMonthsData = (monthsBack) => {
+      const data = {};
+      for (let i = monthsBack - 1; i >= 0; i--) {
+        const date = new Date(currentYear, currentMonth - i, 1);
+        const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        data[monthYear] = { sales: 0, returns: 0 };
+      }
+      return data;
+    };
+
+    const getQuarterData = () => {
+      const data = {};
+      for (let i = 3; i > 0; i--) {
+        const quarter = currentQuarter - (3 - i);
+        const year = currentYear + Math.floor(quarter / 4);
+        const q = (quarter % 4) + 1;
+        data[`Q${q} ${year}`] = { sales: 0, returns: 0 };
+      }
+      return data;
+    };
+
+    const getHalfYearData = () => {
+      const data = {};
+      for (let i = 1; i >= 0; i--) {
+        const date = new Date(currentYear, currentMonth - (i * 6), 1);
+        const half = Math.floor(date.getMonth() / 6) + 1;
+        const year = date.getFullYear();
+        data[`H${half} ${year}`] = { sales: 0, returns: 0 };
+      }
+      return data;
+    };
+
+    return {
+      monthly: getMonthsData(12),
+      quarterly: getQuarterData(),
+      halfYearly: getHalfYearData(),
+    };
+  }, []);
+
+  const getFilteredData = useCallback((timeFilter) => {
+    const dashboardData = getDashboardData();
+    let filteredData = {};
+
+    if (timeFilter === '1month') {
+      filteredData = dashboardData.monthly;
+      const lastMonth = Object.keys(filteredData)[Object.keys(filteredData).length - 1];
+      filteredData = { [lastMonth]: filteredData[lastMonth] };
+    } else if (timeFilter === '3months') {
+      const monthlyData = dashboardData.monthly;
+      filteredData = Object.fromEntries(
+        Object.entries(monthlyData).slice(-3)
+      );
+    } else if (timeFilter === 'quarter') {
+      filteredData = dashboardData.quarterly;
+    } else if (timeFilter === 'halfyear') {
+      filteredData = dashboardData.halfYearly;
+    } else if (timeFilter === '6months') {
+      const monthlyData = dashboardData.monthly;
+      filteredData = Object.fromEntries(
+        Object.entries(monthlyData).slice(-6)
+      );
+    } else {
+      filteredData = dashboardData.monthly;
+    }
+
 
 // --- 4. BILLING & SALES ---
 const InvoiceModal = ({ invoice, onClose, org }) => {
@@ -459,11 +611,17 @@ const BillingSales = ({ inventory, invoices, currentUser, org }) => {
       reason: meta.returnReason || '', ...meta
     });
 
-    cart.forEach(item => {
-      const ref = doc(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'inventory', item.id);
-      const currentQty = inventory.find(i=>i.id===item.id)?.quantity || 0;
-      const newQty = isReturnMode ? currentQty + item.qty : currentQty - item.qty;
-      batch.update(ref, { quantity: newQty });
+    returns.forEach(returnItem => {
+      const returnDate = new Date(returnItem.date);
+      const monthYear = returnDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const quarter = Math.floor(returnDate.getMonth() / 3) + 1;
+      const quarterLabel = `Q${quarter} ${returnDate.getFullYear()}`;
+      const half = Math.floor(returnDate.getMonth() / 6) + 1;
+      const halfLabel = `H${half} ${returnDate.getFullYear()}`;
+
+      if (filteredData[monthYear]) filteredData[monthYear].returns += returnItem.totalAmount || 0;
+      if (filteredData[quarterLabel]) filteredData[quarterLabel].returns += returnItem.totalAmount || 0;
+      if (filteredData[halfLabel]) filteredData[halfLabel].returns += returnItem.totalAmount || 0;
     });
 
     const moveRef = doc(collection(db, 'artifacts', APP_ID, 'users', COMPANY_ID, 'stock_moves'));
@@ -752,8 +910,23 @@ const SatikaApp = () => {
         {activeTab === 'reports' && <ReportsModule invoices={invoices} expenses={expenses} />}
         {activeTab === 'stockmoves' && <StockMovesModule />}
       </main>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={confirmDialog.onCancel}
+        isOpen={confirmDialog.isOpen}
+      />
     </div>
   );
-};
+}
 
-export default SatikaApp;
+export default App;
