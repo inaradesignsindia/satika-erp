@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/BillingSales.css';
 
 function BillingSales({ inventory, onAddBill }) {
   const [selectedProducts, setSelectedProducts] = useState([]);
